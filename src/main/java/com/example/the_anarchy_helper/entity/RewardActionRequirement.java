@@ -12,6 +12,10 @@ public class RewardActionRequirement {
     private Integer id;
 
     @ManyToOne
+    @JoinColumn(name="reward_action_id", nullable = false)
+    private RewardAction rewardAction; // mancava!
+
+    @ManyToOne
     @JoinColumn(name="requirement_id")
     private Requirement requirement;
 

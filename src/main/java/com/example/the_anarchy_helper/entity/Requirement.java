@@ -22,7 +22,7 @@ public class Requirement {
 
     @ManyToOne
     @JoinColumn(name = "resource_id")
-    private Resource requirementId;
+    private Resource requirement;
 
     @ManyToOne
     @JoinColumn(name= "prerequisite_action_id")

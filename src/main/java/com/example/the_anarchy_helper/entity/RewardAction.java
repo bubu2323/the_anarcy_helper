@@ -14,4 +14,6 @@ public class RewardAction {
     private Integer id;
     @Column(name = "action_name", nullable = false)
     private String actionName;
+    @Column(nullable = false)
+    private Boolean immediate;
 }
