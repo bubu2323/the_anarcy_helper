@@ -4,12 +4,14 @@ import jakarta.annotation.Nullable;
 import lombok.Data;
 import lombok.NonNull;
 
+import java.util.List;
+
 @Data
 public class FindResourceRequest {
     @NonNull
     private ResourceType neededResourceType;
     @Nullable
-    private ResourceType ownedResourceType;
+    private List<ResourceType> ownedResourceType;
     @NonNull
     private Necessity necessity;
 }

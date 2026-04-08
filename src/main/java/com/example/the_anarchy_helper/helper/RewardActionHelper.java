@@ -27,7 +27,7 @@ public class RewardActionHelper {
     private final String BUILD_KEEPS = "Build Keeps in the Governance Leadership line";
 
     //Serfs
-    private final String BUY_FROM_SIEGECRAFT = "Buy them from the Siegecraft quadrant of the Wealth wheel.";
+    private final String BUY_FROM_SIEGECRAFT = "Buy serf from the Siegecraft quadrant of the Wealth wheel.";
     private final String USE_VALENTINE_FESTIVAL ="Use the St. Valentine’s Festival area in the Worship Leadership row.";
     private final String GET_FROM_GOVERNANCE_AND_ENTERTAINMENT  ="Serfs and Serf production can be found on the Governance and Entertainment Leadership lines.";
     private final String SCORE_BONUS_SERFS ="Score bonus Serfs";

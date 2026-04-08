@@ -6,9 +6,10 @@ import java.util.List;
 
 @Data
 public class Actions {
-    private String name; //move to enum
+    private String name;
+    private String actionCategory; //move to enum buy, build, owerhelm, score, fill, use, gain
     private Area area;
-    private String prerequisite;
+    private List<String> prerequisite;
     private List<ResourceType> costs;
     private List<Attributes> rewards;
 }
