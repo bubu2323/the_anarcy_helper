@@ -1,9 +1,6 @@
 package com.example.the_anarchy_helper.service;
 
-import com.example.the_anarchy_helper.dto.Actions;
-import com.example.the_anarchy_helper.dto.FindResourceRequest;
-import com.example.the_anarchy_helper.dto.FindResourceResponse;
-import com.example.the_anarchy_helper.dto.Necessity;
+import com.example.the_anarchy_helper.dto.*;
 import com.example.the_anarchy_helper.entity.Requirement;
 import com.example.the_anarchy_helper.entity.Resource;
 import com.example.the_anarchy_helper.entity.RewardAction;
@@ -11,13 +8,12 @@ import com.example.the_anarchy_helper.entity.RewardActionResult;
 import com.example.the_anarchy_helper.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.NotFound;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.cfg.MapperBuilder;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -48,30 +44,51 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
                 .findByName(request.getNeededResourceType().getName())
                 .orElseThrow(() -> new NoSuchElementException("Resource not found"));
 
+        //recupera tutte le azioni e requisiti che hanno come ricompensa la risorsa desiderata
+        //esempio  RewardActionResult(id=6, rewardAction=RewardAction(id=5, actionName=Convert to soldiers (and soldier production) in the Training grounds, immediate=true),
+        // resource=Resource(id=4, name=Soldier, color=red, category=Category(id=1, name=human)))
+
         List<RewardActionResult> rewardActionResultList =
                 rewardActionResultRepository.findByResourceId(neededResource.getId());
+        rewardActionResultList
+                .forEach(rewardActionEl -> log.info("rewardActionEl {}", rewardActionEl.toString()));
 
         List<Integer> rewardActionIds = rewardActionResultList
                 .stream()
                 .map(rewardActionResult -> rewardActionResult.getRewardAction().getId())
                 .toList();
 
-        //search into requirementRepository each requirement by owned resource
+        //ricerca in requirementsRepository tutti i requisiti per ottenere la risorsa desiderata
         List<Requirement> requirementsToGetResult = requirementsRepository.findByRequirement_IdIn(ownedResourceIds);
 
+        requirementsToGetResult
+                .forEach(rewardActionEl -> log.info("requirementsToGetResult {}", rewardActionEl.toString()));
+        //requirementsToGetResult Requirement(id=2, isAction=false, isResource=true, requirement=Resource(id=2, name=Craftsman, color=black, category=Category(id=1, name=human)), prerequisiteAction=null)
+
+
+        //tutte le azioni che hanno come requisito la risorsa posseduta
         List<Integer> ownedRewardActionIds = this.getRewardActionIdsByRequirements(requirementsToGetResult);
 
+        //ricerca tra tutte le ricompense che si possono ottenere quelle che hanno come requisito la risorsa posseduta
         List<Integer> result = rewardActionIds
                 .stream()
                 .filter(ownedRewardActionIds::contains)
                 .toList();
 
+        //risultato: tutte le azioni per ottenere la ricompensa desiderata
         List<RewardAction> rewardActionList = rewardActionsRepository.findByIdIn(result);
 
+        rewardActionList
+                .forEach(rwl -> log.info("rewardActionList {}", rwl.toString()));
+
+        //rewardActionList RewardAction(id=8, actionName=Fill in the Ramparts line in the Leadership row (and Soldier production), immediate=false)
+
         Necessity necessity = request.getNecessity();
+
+        //filtra le azioni ottenute in base alla necessita'
         List<RewardAction> filteredResult = this.getRewardActionsByNecessity(necessity, rewardActionList);
 
-        log.info("filteredResult {}", filteredResult);
+        log.debug("filteredResult {}", filteredResult);
 
         return this.buildFindResourceResponse(filteredResult);
     }
@@ -97,21 +114,24 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
                 .toList();
     }
 
-    private static @NonNull FindResourceResponse buildFindResourceResponse(List<RewardAction> filteredResult) {
+    private @NonNull FindResourceResponse buildFindResourceResponse(List<RewardAction> filteredResult) {
         List<Actions> list = filteredResult
                 .stream()
-                .map(r -> {
-                    Actions actions = new Actions();
-                    actions.setName(r.getActionName());
-                    return actions;
-                })
+                .map(this::buildAction)
                 .toList();
         FindResourceResponse response = new FindResourceResponse();
         response.setActionsForReward(list);
         return response;
     }
 
-    private static List<RewardAction> getRewardActionsByNecessity(Necessity necessity, List<RewardAction> rewardActionList) {
+    private Actions buildAction(RewardAction r) {
+        return Actions.builder()
+                .name(r.getActionName())
+                .area(r.getArea().getName())
+                .build();
+    }
+
+    private List<RewardAction> getRewardActionsByNecessity(Necessity necessity, List<RewardAction> rewardActionList) {
         return
                 switch (necessity) {
                     case PROGRAMMED ->
@@ -123,12 +143,16 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
     }
 
     private @NonNull List<Integer> getResourceIds(FindResourceRequest request) {
-        List<String> resource = request.getOwnedResourceType()
+        List<ResourceType> resource = request.getOwnedResourceType();
+        if (resource == null) {
+            return Collections.emptyList();
+        }
+        List<String> resourceNames = resource
                 .stream()
                 .map(ownedResource -> ownedResource.getName())
                 .toList();
 
-        List<Resource> resourceList = resourceRepository.findByNameIn(resource);
+        List<Resource> resourceList = resourceRepository.findByNameIn(resourceNames);
 
         if (resourceList.isEmpty()) {
             throw new NoSuchElementException("resource not found.");

@@ -16,4 +16,8 @@ public class RewardAction {
     private String actionName;
     @Column(nullable = false)
     private Boolean immediate;
+
+    @ManyToOne
+    @JoinColumn(name = "area_id")
+    private Area area;
 }
