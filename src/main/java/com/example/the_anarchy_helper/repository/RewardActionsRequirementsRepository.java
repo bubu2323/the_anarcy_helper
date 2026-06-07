@@ -9,4 +9,7 @@ public interface RewardActionsRequirementsRepository extends JpaRepository<Rewar
     List<RewardActionRequirement> findByRequirementId(Integer requirementId);
 
     List<RewardActionRequirement> findByRewardActionId(Integer rewardActionId);
+
+    List<RewardActionRequirement> findByRewardActionActionName(String rewardActionActionName);
+
 }

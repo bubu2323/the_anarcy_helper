@@ -1,10 +1,7 @@
 package com.example.the_anarchy_helper.service;
 
 import com.example.the_anarchy_helper.dto.*;
-import com.example.the_anarchy_helper.entity.Requirement;
-import com.example.the_anarchy_helper.entity.Resource;
-import com.example.the_anarchy_helper.entity.RewardAction;
-import com.example.the_anarchy_helper.entity.RewardActionResult;
+import com.example.the_anarchy_helper.entity.*;
 import com.example.the_anarchy_helper.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.cfg.MapperBuilder;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -69,6 +65,7 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         //tutte le azioni che hanno come requisito la risorsa posseduta
         List<Integer> ownedRewardActionIds = this.getRewardActionIdsByRequirements(requirementsToGetResult);
 
+
         //ricerca tra tutte le ricompense che si possono ottenere quelle che hanno come requisito la risorsa posseduta
         List<Integer> result = rewardActionIds
                 .stream()
@@ -86,11 +83,29 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         Necessity necessity = request.getNecessity();
 
         //filtra le azioni ottenute in base alla necessita'
-        List<RewardAction> filteredResult = this.getRewardActionsByNecessity(necessity, rewardActionList);
+        List<RewardAction> rewardActionsByNecessity = this.getRewardActionsByNecessity(necessity, rewardActionList);
 
-        log.debug("filteredResult {}", filteredResult);
+        //recupera tutte le risorse e le azioni necessarie per ottenere la ricompensa(=risorsa desiderata)
+        Map<String, String> requirementsToReward = this.getRequirementsToReward(rewardActionsByNecessity);
 
-        return this.buildFindResourceResponse(filteredResult);
+        log.info("rewardActionsByNecessity {}", rewardActionsByNecessity);
+
+        return this.buildFindResourceResponse(requirementsToReward);
+    }
+
+    private Map<String, String> getRequirementsToReward(List<RewardAction> rewardActionsByNecessity) {
+        List<RewardActionRequirement> rewardActionRequirementList = rewardActionsByNecessity
+                .stream()
+                .map(rewardActionRequirement -> rewardActionsRequirementsRepository.findByRewardActionActionName(rewardActionRequirement.getActionName()).stream().toList())
+                .flatMap(Collection::stream)
+                .toList();
+
+        Map<String, String> mapRewardsAndRequirements = rewardActionRequirementList
+                .stream()
+                .collect(Collectors.groupingBy(rewardActionResult -> rewardActionResult.getRewardAction().getActionName(),
+                        Collectors.mapping(rewardActionResult -> rewardActionResult.getRequirement().getRequirement().getName(), Collectors.joining(","))));
+
+        return mapRewardsAndRequirements;
     }
 
 
@@ -105,31 +120,47 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
      * @return list of reward action IDs that require the owned resources
      */
     private @NonNull List<Integer> getRewardActionIdsByRequirements(List<Requirement> requirements) {
-        return requirements
+        //rewardActionRequirement.getRewardAction()
+        List<Integer> list = requirements
                 .stream()
                 .flatMap(requirement -> rewardActionsRequirementsRepository
                         .findByRequirementId(requirement.getId())
                         .stream())
                 .map(rewardActionRequirement -> rewardActionRequirement.getRewardAction().getId())
                 .toList();
+        return list;
+
+
     }
 
-    private @NonNull FindResourceResponse buildFindResourceResponse(List<RewardAction> filteredResult) {
-        List<Actions> list = filteredResult
-                .stream()
-                .map(this::buildAction)
-                .toList();
-        FindResourceResponse response = new FindResourceResponse();
-        response.setActionsForReward(list);
-        return response;
+    private @NonNull FindResourceResponse buildFindResourceResponse(Map<String, String> result) {
+        //todo
+        List<Actions> actionsList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : result.entrySet()) {
+
+            Map<String, Actions> objectMap = new HashMap<>();
+            String key = entry.getKey();
+            String[] values = entry.getValue().split(",");
+            String name = values[0];
+            Actions action = new Actions(name, null, null, null);
+
+
+            objectMap.put(key, action);
+        }
+
+        FindResourceResponse res = FindResourceResponse.createFindResourceResponse(actionsList);
+        log.info("buildFindResourceResponse {}", res);
+         return new FindResourceResponse(null);
+
+
     }
 
-    private Actions buildAction(RewardAction r) {
-        return Actions.builder()
-                .name(r.getActionName())
-                .area(r.getArea().getName())
-                .build();
-    }
+//    private Actions buildAction(RewardAction r) {
+//        return Actions.builder()
+//                .name(r.getActionName())
+////                .area(r.getArea().getName())
+//                .build();
+//    }
 
     private List<RewardAction> getRewardActionsByNecessity(Necessity necessity, List<RewardAction> rewardActionList) {
         return
@@ -137,7 +168,7 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
                     case PROGRAMMED ->
                             rewardActionList.stream().filter(rewardAction -> !rewardAction.getImmediate()).toList();
                     case IMMEDIATELY ->
-                            rewardActionList.stream().filter(rewardAction -> rewardAction.getImmediate()).toList();
+                            rewardActionList.stream().filter(RewardAction::getImmediate).toList();
                     case INDIFFERENT -> rewardActionList;
                 };
     }

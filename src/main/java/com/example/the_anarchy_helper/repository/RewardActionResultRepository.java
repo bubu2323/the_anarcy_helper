@@ -9,4 +9,6 @@ import java.util.List;
 public interface RewardActionResultRepository extends JpaRepository<RewardActionResult, Integer> {
    // permette di recuperare tutte le reward action che hanno come risoluzione la risorsa desiderata
     List<RewardActionResult> findByResourceId(Integer resourceId);
+
+    List<RewardActionResult> findByRewardActionId(Integer rewardActionId);
 }
