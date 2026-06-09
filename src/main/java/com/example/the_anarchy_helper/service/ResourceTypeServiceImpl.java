@@ -2,7 +2,9 @@ package com.example.the_anarchy_helper.service;
 
 import com.example.the_anarchy_helper.domain.dto.*;
 import com.example.the_anarchy_helper.domain.entity.*;
+import com.example.the_anarchy_helper.domain.entity.Area;
 import com.example.the_anarchy_helper.repository.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -86,14 +88,14 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         List<RewardAction> rewardActionsByNecessity = this.filterByNecessity(necessity, rewardActionList);
 
         //recupera tutte le risorse e le azioni necessarie per ottenere la ricompensa(=risorsa desiderata)
-        Map<String, String> requirementsToReward = this.getRewardAndRequirements(rewardActionsByNecessity);
+        Map<String, List<RewardAndRequirement>> rewardAndRequirements = this.getRewardAndRequirements(rewardActionsByNecessity);
 
-        log.info("rewardActionsByNecessity {}", rewardActionsByNecessity);
+        log.info("rewardActionsByNecessity {}", rewardAndRequirements);
 
-        return this.buildFindResourceResponse(requirementsToReward);
+        return this.buildFindResourceResponse(rewardAndRequirements, request.getOwnedResourceType());
     }
 
-    private Map<String, String> getRewardAndRequirements(List<RewardAction> rewardActionsByNecessity) {
+    private Map<String, List<RewardAndRequirement>> getRewardAndRequirements(List<RewardAction> rewardActionsByNecessity) {
         List<RewardActionRequirement> rewardActionRequirementList = rewardActionsByNecessity
                 .stream()
                 .map(rewardActionRequirement -> rewardActionsRequirementsRepository.findByRewardActionActionName(rewardActionRequirement.getActionName())
@@ -102,13 +104,13 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
                 .flatMap(Collection::stream)
                 .toList();
 
-        Map<String, String> mapRewardsAndRequirements = rewardActionRequirementList
+        Map<String, List<RewardAndRequirement>> rewardsAndRequirementsMap = rewardActionRequirementList
                 .stream()
                 .collect(Collectors.groupingBy(rewardActionResult -> rewardActionResult.getRewardAction().getActionName(),
-                        Collectors.mapping(this::checkIfHasRequirementOrPrerequisite, Collectors.joining(","))));
+                        Collectors.mapping(RewardAndRequirement::buildRewardAndRequirement,
+                                Collectors.toList())));
 
-
-        return this.removeDuplicateEntries(mapRewardsAndRequirements);
+        return rewardsAndRequirementsMap;
     }
 
 
@@ -136,19 +138,43 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
 
     }
 
-    private @NonNull FindResourceResponse buildFindResourceResponse(Map<String, String> result) {
-        List<Actions> actionsList = new ArrayList<>();
-        result.forEach((key, value) -> {
-            String[] listOfRequiredResources = value.split(",");
-            List<ResourceType> list = Arrays.stream(listOfRequiredResources).map(resource -> new ResourceType(resource, null)).toList();
-            Actions action = new Actions(key, null, null, list);
-            actionsList.add(action);
-        });
+    private @NonNull FindResourceResponse buildFindResourceResponse(Map<String, List<RewardAndRequirement>> rewardAndRequirementList,List<ResourceType> ownedResourceList ) {
+        List<Actions> actionsList = this.buildActionList(rewardAndRequirementList);
 
+        /**
+         *
+         * --- TODO: add logic to filter by  ownedResourceList if findOnlyByOwnedResourceTypes is true --
+         * List<String> list = ownedResourceList.stream().map(resourceType -> resourceType.getName()).toList();
+         *
+        **/
+
+        log.info("actionsList ---> {}", actionsList);
         FindResourceResponse response = FindResourceResponse.createFindResourceResponse(actionsList);
-        log.info("buildFindResourceResponse {}", response);
+        log.debug("buildFindResourceResponse {}", response);
+
         return response;
     }
+
+    private @NonNull List<Actions> buildActionList(Map<String, List<RewardAndRequirement>> result) {
+        Map<String, Actions> actionsMap = result.entrySet()
+                .stream()
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey(),
+                        entry -> {
+                            String actionName = entry.getKey();
+                            List<RewardAndRequirement> requirements = entry.getValue();
+                            String area = this.getAreaName(requirements);
+                            List<String> prerequisites = this.getAllUniquePrerequisitesActions(requirements);
+                            List<String> costs = this.getAllUniqueRequirement(requirements);
+
+                            return new Actions(actionName, area, prerequisites, costs);
+                        }
+                ));
+
+
+        return actionsMap.values().stream().toList();
+    }
+
 
     private List<RewardAction> filterByNecessity(Necessity necessity, List<RewardAction> rewardActionList) {
         return
@@ -190,10 +216,34 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         return req.getRequirement().getRequirement().getName();
     }
 
-    private Map<String, String> removeDuplicateEntries(Map<String, String> stringMap) {
-        stringMap.forEach((key, value) -> {
-            stringMap.replace(key, Arrays.stream(value.split(",")).distinct().collect(Collectors.joining(",")));
-        });
-        return stringMap;
+    private  List<String> getAllUniqueRequirement(List<RewardAndRequirement> requirements) {
+        return requirements.stream()
+                .map(req -> Optional.ofNullable(req.getRequirement())
+                        .map(Requirement::getRequirement)
+                        .map(Resource::getName)
+                        .orElse(null))
+                .distinct()
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private List<String> getAllUniquePrerequisitesActions(List<RewardAndRequirement> requirements) {
+        return requirements.stream()
+                .map(req -> Optional.ofNullable(req.getRequirement())
+                        .map(Requirement::getPrerequisiteAction)
+                        .map(PrerequisiteAction::getName)
+                        .orElse(null))
+                .distinct()
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private String getAreaName(List<RewardAndRequirement> requirements) {
+        return requirements.stream()
+                .findFirst()
+                .map(RewardAndRequirement::getRewardAction)
+                .map(RewardAction::getArea)
+                .map(Area::getName)
+                .orElse("unknow area");
     }
 }

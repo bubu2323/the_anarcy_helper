@@ -10,6 +10,6 @@ public class Actions {
     private String name;
     private String area;
     private List<String> prerequisite;
-    private List<ResourceType> costs;
+    private List<String> costs;
 //    private List<Attributes> rewards;
 }

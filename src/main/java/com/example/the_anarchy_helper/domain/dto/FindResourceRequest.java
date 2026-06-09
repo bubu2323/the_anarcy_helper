@@ -17,4 +17,6 @@ public class FindResourceRequest {
     private List<ResourceType> ownedResourceType;
     @NotNull(message = "necessity of a resource cannot be null")
     private Necessity necessity;
+    @NotNull(message = "set a value for findOnlyByOwnedResourceTypes")
+    private Boolean findOnlyByOwnedResourceTypes;
 }

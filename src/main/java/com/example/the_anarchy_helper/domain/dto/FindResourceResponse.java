@@ -9,7 +9,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 public class FindResourceResponse {
-    List<Actions> actionsForReward = new ArrayList<>();
+    List<Actions> rewardActions;
 
     public static FindResourceResponse createFindResourceResponse(List<Actions> actionsList){
         return new FindResourceResponse(actionsList);
