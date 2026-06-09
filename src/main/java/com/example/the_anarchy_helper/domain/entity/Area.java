@@ -1,4 +1,4 @@
-package com.example.the_anarchy_helper.entity;
+package com.example.the_anarchy_helper.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

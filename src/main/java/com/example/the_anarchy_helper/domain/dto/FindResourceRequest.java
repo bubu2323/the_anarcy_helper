@@ -1,4 +1,4 @@
-package com.example.the_anarchy_helper.dto;
+package com.example.the_anarchy_helper.domain.dto;
 
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;

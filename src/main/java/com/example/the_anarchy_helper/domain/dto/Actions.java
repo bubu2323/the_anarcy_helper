@@ -1,7 +1,6 @@
-package com.example.the_anarchy_helper.dto;
+package com.example.the_anarchy_helper.domain.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;

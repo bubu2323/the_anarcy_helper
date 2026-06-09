@@ -1,6 +1,6 @@
 package com.example.the_anarchy_helper.repository;
 
-import com.example.the_anarchy_helper.entity.Resource;
+import com.example.the_anarchy_helper.domain.entity.Resource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

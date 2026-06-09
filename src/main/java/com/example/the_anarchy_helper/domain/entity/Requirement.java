@@ -1,7 +1,6 @@
-package com.example.the_anarchy_helper.entity;
+package com.example.the_anarchy_helper.domain.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
