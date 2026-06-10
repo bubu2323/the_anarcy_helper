@@ -4,7 +4,6 @@ import com.example.the_anarchy_helper.domain.dto.*;
 import com.example.the_anarchy_helper.domain.entity.*;
 import com.example.the_anarchy_helper.domain.entity.Area;
 import com.example.the_anarchy_helper.repository.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -92,7 +91,7 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
 
         log.info("rewardActionsByNecessity {}", rewardAndRequirements);
 
-        return this.buildFindResourceResponse(rewardAndRequirements, request.getOwnedResourceType());
+        return this.buildFindResourceResponse(rewardAndRequirements, request.getOwnedResourceType(), request.getFindOnlyByOwnedResourceTypes());
     }
 
     private Map<String, List<RewardAndRequirement>> getRewardAndRequirements(List<RewardAction> rewardActionsByNecessity) {
@@ -138,22 +137,24 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
 
     }
 
-    private @NonNull FindResourceResponse buildFindResourceResponse(Map<String, List<RewardAndRequirement>> rewardAndRequirementList,List<ResourceType> ownedResourceList ) {
-        List<Actions> actionsList = this.buildActionList(rewardAndRequirementList);
+    private @NonNull FindResourceResponse buildFindResourceResponse(Map<String, List<RewardAndRequirement>> rewardAndRequirementList, List<ResourceType> ownedResourceList, Boolean filterByOwnedResources ) {
+        List<Actions> actionsList = new ArrayList<>(this.buildActionList(rewardAndRequirementList));
 
-        /**
-         *
-         * --- TODO: add logic to filter by  ownedResourceList if findOnlyByOwnedResourceTypes is true --
-         * List<String> list = ownedResourceList.stream().map(resourceType -> resourceType.getName()).toList();
-         *
-        **/
-
-        log.info("actionsList ---> {}", actionsList);
-        FindResourceResponse response = FindResourceResponse.createFindResourceResponse(actionsList);
-        log.debug("buildFindResourceResponse {}", response);
-
-        return response;
+        if (filterByOwnedResources) {
+            this.filterByResources(ownedResourceList, actionsList);
+        }
+        return FindResourceResponse.createFindResourceResponse(actionsList);
     }
+
+    private void filterByResources(List<ResourceType> ownedResourceList, List<Actions> actionsList) {
+        Set<String> ownedResourceNames = ownedResourceList
+                .stream()
+                .map(ResourceType::getName)
+                .collect(Collectors.toSet());
+
+        actionsList.removeIf(action -> !ownedResourceNames.containsAll(action.getCosts()));
+    }
+
 
     private @NonNull List<Actions> buildActionList(Map<String, List<RewardAndRequirement>> result) {
         Map<String, Actions> actionsMap = result.entrySet()
@@ -206,14 +207,6 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
                 .stream()
                 .map(Resource::getId)
                 .toList();
-    }
-
-
-    private String checkIfHasRequirementOrPrerequisite(RewardActionRequirement req) {
-        if (req.getRequirement().getRequirement() == null) {
-            return req.getRequirement().getPrerequisiteAction().getName();
-        }
-        return req.getRequirement().getRequirement().getName();
     }
 
     private  List<String> getAllUniqueRequirement(List<RewardAndRequirement> requirements) {
