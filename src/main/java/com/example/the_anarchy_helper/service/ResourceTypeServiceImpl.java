@@ -34,12 +34,10 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
     private MapperBuilder mapperBuilder;
 
     @Override
-    public FindResourceResponse findWayToGetResource(FindResourceRequest request) {
+    public FindResourceResponse findByFindResourceRequest(FindResourceRequest request) {
         List<Integer> ownedResourceIds = this.getResourceIds(request);
 
-        Resource neededResource = resourceRepository
-                .findByName(request.getNeededResourceType().getName())
-                .orElseThrow(() -> new NoSuchElementException("Resource not found"));
+        Resource neededResource = this.getResourceByName(request.getNeededResourceType().getName());
 
         //recupera tutte le azioni e le risorse che hanno come ricompensa la risorsa desiderata
         //esempio  RewardActionResult(id=6, rewardAction=RewardAction(id=5, actionName=Convert to soldiers (and soldier production) in the Training grounds, immediate=true),
@@ -92,6 +90,34 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         log.info("rewardActionsByNecessity {}", rewardAndRequirements);
 
         return this.buildFindResourceResponse(rewardAndRequirements, request.getOwnedResourceType(), request.getFindOnlyByOwnedResourceTypes());
+    }
+
+
+
+    @Override
+    public FindResourceResponse findAllWaysToGetResult(String neededResource, Necessity necessity) {
+        Resource resource = this.getResourceByName(neededResource);
+
+        List<RewardActionResult> rewardActionResultList =
+                rewardActionResultRepository.findByResourceId(resource.getId());
+
+        rewardActionResultList
+                .forEach(rewardActionEl -> log.info("rewardActionEl {}", rewardActionEl.toString()));
+
+        List<Integer> rewardActionIds = rewardActionResultList
+                .stream()
+                .map(rewardActionResult -> rewardActionResult.getRewardAction().getId())
+                .toList();
+
+
+//        List<Requirement> requirementsToGetResult = requirementsRepository.findByRequirement_Id(ownedResourceIds);
+        return null;
+    }
+
+    private @NonNull Resource getResourceByName(String resourceName) {
+        return resourceRepository
+                .findByName(resourceName)
+                .orElseThrow(() -> new NoSuchElementException("Resource not found"));
     }
 
     private Map<String, List<RewardAndRequirement>> getRewardAndRequirements(List<RewardAction> rewardActionsByNecessity) {
@@ -160,7 +186,7 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         Map<String, Actions> actionsMap = result.entrySet()
                 .stream()
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey(),
+                        Map.Entry::getKey,
                         entry -> {
                             String actionName = entry.getKey();
                             List<RewardAndRequirement> requirements = entry.getValue();
@@ -194,7 +220,7 @@ public class ResourceTypeServiceImpl implements ResourceTypeService {
         }
         List<String> resourceNames = resource
                 .stream()
-                .map(ownedResource -> ownedResource.getName())
+                .map(ResourceType::getName)
                 .toList();
 
         List<Resource> resourceList = resourceRepository.findByNameIn(resourceNames);
